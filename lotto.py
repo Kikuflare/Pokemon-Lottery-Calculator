@@ -1,74 +1,21 @@
 import random
 import time
+import sys
+import argparse
 
+
+# Minimum and maximum values of valid trainer ids
 LOWER_BOUND = 0
 UPPER_BOUND = 65536
 LENGTH = len(str(UPPER_BOUND))
 
-def match(trainer_id):
-    try:
-        if (trainer_id < LOWER_BOUND or trainer_id > UPPER_BOUND - 1 or not isinstance(trainer_id,int)):
-            print("Error: argument must be an integer between 0 and 65535 inclusive")
-        else:
-            ids = []
-            for i in range(LOWER_BOUND, UPPER_BOUND):
-                ids.append(str(i).zfill(LENGTH))
-            
-            tid = str(trainer_id).zfill(LENGTH)
-            match0 = 0
-            match1 = 0
-            match2 = 0
-            match3 = 0
-            match4 = 0
-            match5 = 0
 
-            for lid in ids:
-                matched = 0
-                for digit in range(LENGTH):
-                    if lid[digit] == tid[digit]:
-                        matched += 1
-                if matched == 0:
-                    match0 += 1
-                elif matched == 1:
-                    match1 += 1
-                elif matched == 2:
-                    match2 += 1
-                elif matched == 3:
-                    match3 += 1
-                elif matched == 4:
-                    match4 += 1
-                elif matched == 5:
-                    match5 += 1
-
-            print("Results:")
-            print("0 digits:   " + str(match0).rjust(LENGTH) + " | " + calculateChance(match0).rjust(7) + "%")
-            print("1 digit:    " + str(match1).rjust(LENGTH) + " | " + calculateChance(match1).rjust(7) + "%")
-            print("2 digits:   " + str(match2).rjust(LENGTH) + " | " + calculateChance(match2).rjust(7) + "%")
-            print("3 digits:   " + str(match3).rjust(LENGTH) + " | " + calculateChance(match3).rjust(7) + "%")
-            print("4 digits:   " + str(match4).rjust(LENGTH) + " | " + calculateChance(match4).rjust(7) + "%")
-            print("5 digits:   " + str(match5).rjust(LENGTH) + " | " + calculateChance(match5).rjust(7) + "%")
-            print("")
-
-            atleast1 = match1 + match2 + match3 + match4 + match5
-            atleast2 = match2 + match3 + match4 + match5
-            atleast3 = match3 + match4 + match5
-            atleast4 = match4 + match5
-            print("At least 1: " + str(atleast1).rjust(LENGTH) + " | " + calculateChance(atleast1).rjust(7) + "%")
-            print("At least 2: " + str(atleast2).rjust(LENGTH) + " | " + calculateChance(atleast2).rjust(7) + "%")
-            print("At least 3: " + str(atleast3).rjust(LENGTH) + " | " + calculateChance(atleast3).rjust(7) + "%")
-            print("At least 4: " + str(atleast4).rjust(LENGTH) + " | " + calculateChance(atleast4).rjust(7) + "%")
-
-    except ValueError:
-        print("Error: unexpected value")
-    except TypeError:
-        print("Error: match given non-integer argument")
-
-def calculateChance(matched):
-    return str(round(((matched / UPPER_BOUND) * 100), 4))
-
-def matchIds(trainer_ids):
+def match_ids(trainer_ids):
+    # Takes a list of trainer ids and calculates the odds of winning each tier of lottery prize in the Pokemon games.
+    # Prints out the results of the calculations at the end.
     start_time = time.time()
     try:
+        # Sets that contain unique lotto numbers that match 0 to 5 digits.
         match0 = set()
         match1 = set()
         match2 = set()
@@ -76,6 +23,8 @@ def matchIds(trainer_ids):
         match4 = set()
         match5 = set()
 
+        # Create a list containing all possible lottery numbers in string form with padded 0s if the number
+        # has less than 5 digits.
         ids = []
         for i in range(LOWER_BOUND, UPPER_BOUND):
             ids.append(str(i).zfill(5))
@@ -83,14 +32,19 @@ def matchIds(trainer_ids):
         for tid in trainer_ids:
             if (tid < LOWER_BOUND or tid > UPPER_BOUND - 1 or not isinstance(tid,int)):
                 print("Error: argument must be an integer between 0 and 65535 inclusive.")
+                sys.exit()
             else:
                 tid = str(tid).zfill(5)
 
                 for lid in ids:
                     matched = 0
-                    for digit in range(5):
+                    for digit in reversed(range(LENGTH)):
                         if lid[digit] == tid[digit]:
                             matched += 1
+                        else:
+                            break
+                    
+                    # Promote ids to a higher set by discarding the value in lower sets when a better match is found
                     if matched == 5:
                         match5.add(lid)
                         match4.discard(lid)
@@ -124,6 +78,7 @@ def matchIds(trainer_ids):
                         if lid not in match0 and lid not in match1 and lid not in match2 and lid not in match3 and lid not in match4 and lid not in match5:
                             match0.add(lid)
 
+        # Print out results of calculations
         print("Results:")
         print("0 digits:   " + str(len(match0)).rjust(LENGTH) + " | " + calculateChance(len(match0)).rjust(7) + "%")
         print("1 digit:    " + str(len(match1)).rjust(LENGTH) + " | " + calculateChance(len(match1)).rjust(7) + "%")
@@ -153,3 +108,38 @@ def matchIds(trainer_ids):
 
 def generate(n):
     return random.sample(range(LOWER_BOUND, UPPER_BOUND), n)
+    
+def calculateChance(matched):
+    # Calculate the percentage of matched values out of 65535, returns result rounded to 4 digits as a string.
+    return str(round(((matched / UPPER_BOUND) * 100), 4))
+
+def main():
+    # Command line interface
+    parser = argparse.ArgumentParser(description="Calculate the odds of winning each tier of lottery prize in the Pokemon games.")
+    parser.add_argument('--generate',
+                        dest='generate',
+                        help="Automatically generate ids.",
+                        action='store_true')
+    parser.add_argument('N',
+                        help="If --generate flag is set, N is a single argument that specifies how many random ids to automatically generate. Otherwise, N is any number of user specified ids between 0 ad 65535 inclusive.",
+                        type=int,
+                        nargs='+')
+    
+    # Parse the command line arguments
+    args = parser.parse_args()
+    
+    # Generate random ids or use command line supplied values
+    if args.generate:
+        if len(args.N) == 1:
+            if args.N[0] < 0:
+                print("Error: N must be a positive integer.")
+            else:
+                match_ids(generate(args.N[0]))
+        else:
+            print("Error: --generate expected 1 argument, got {}".format(len(args.N)))
+        
+    else:
+        match_ids(args.N)
+    
+if __name__ == "__main__":
+    main()
